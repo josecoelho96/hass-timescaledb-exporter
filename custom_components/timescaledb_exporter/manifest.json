@@ -1,0 +1,15 @@
+{
+  "domain": "timescaledb_exporter",
+  "name": "TimescaleDB Exporter",
+  "version": "0.1.0",
+  "documentation": "https://github.com/jcoelho/hass-timescaledb-exporter",
+  "issue_tracker": "https://github.com/jcoelho/hass-timescaledb-exporter/issues",
+  "codeowners": ["@jcoelho"],
+  "dependencies": [],
+  "requirements": ["asyncpg==0.31.0"],
+  "config_flow": true,
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "single_config_entry": true,
+  "loggers": ["asyncpg"]
+}

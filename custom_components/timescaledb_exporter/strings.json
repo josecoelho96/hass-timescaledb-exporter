@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to TimescaleDB",
+        "description": "Enter your TimescaleDB connection details for long-term state storage.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "database": "Database name",
+          "username": "Username",
+          "password": "Password",
+          "ssl": "Use SSL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the database. Check host, port, and credentials.",
+      "invalid_auth": "Invalid authentication credentials.",
+      "timescaledb_not_installed": "TimescaleDB extension is not installed on this PostgreSQL server.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This database is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "TimescaleDB Exporter Options",
+        "description": "Configure export behavior, exclusions, and data retention policies. Set retention days to 0 to keep data forever.",
+        "data": {
+          "batch_size": "Batch size (records per write)",
+          "flush_interval": "Flush interval (seconds)",
+          "excluded_entity_globs": "Excluded entity patterns (one per line, e.g. sensor.weather_*)",
+          "excluded_domains": "Excluded domains (comma-separated, e.g. automation,script)",
+          "compression_after_days": "Compress data after (days)",
+          "retention_raw_days": "Keep raw data for (days, 0 = forever)",
+          "retention_hourly_days": "Keep hourly aggregates for (days, 0 = forever)",
+          "retention_daily_days": "Keep daily aggregates for (days, 0 = forever)"
+        }
+      }
+    }
+  }
+}
