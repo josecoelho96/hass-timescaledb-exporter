@@ -9,6 +9,7 @@ A Home Assistant custom integration that exports **all state changes** to [Times
 
 - **Real-time export** — Listens to all `EVENT_STATE_CHANGED` events and writes to TimescaleDB
 - **Buffered batch writes** — Uses an async queue with `executemany` for efficient throughput
+- **Connection recovery** — Automatic retry with exponential backoff on transient database errors
 - **Automatic schema management** — 7 versioned SQL migrations create hypertables, indexes, compression, continuous aggregates, and retention policies
 - **TimescaleDB-native features**:
   - **Hypertables** with configurable chunk intervals
@@ -18,6 +19,7 @@ A Home Assistant custom integration that exports **all state changes** to [Times
 - **Dual-column state storage** — `state` (TEXT) + `state_numeric` (FLOAT) for efficient aggregation without query-time casting
 - **Entity metadata tracking** — domain, friendly name, unit, device class
 - **Configurable exclusions** — exclude entities by glob pattern or entire domains
+- **Status sensor** — `sensor.timescaledb_exporter_status` exposes health, write counts, queue depth, and error stats
 - **UI-based configuration** — full Config Flow + Options Flow, no YAML needed
 - **Diagnostics** — connection status, queue depth, write stats, database size, compression ratios
 
@@ -125,6 +127,29 @@ GROUP BY hour
 ORDER BY hour;
 ```
 
+## Grafana Dashboard
+
+A pre-built Grafana dashboard is included in `grafana/dashboard.json`.
+
+### Panels
+
+- **Database Size** — total database size on disk
+- **Tracked Entities** — count of unique entities seen
+- **Compression Ratio** — storage savings from compression
+- **Total State Changes (24h)** — event count over the last day
+- **Entity State History** — raw numeric state values for a selected entity
+- **Hourly Aggregates** — avg/min/max from continuous aggregates
+- **State Change Rate** — events per hour bar chart
+- **Top 20 Entities by Activity** — busiest entities in the last 24h
+- **Chunk Overview** — TimescaleDB chunk status and compression
+
+### Setup
+
+1. Add a **PostgreSQL** data source in Grafana pointing to your TimescaleDB instance
+2. Go to **Dashboards → Import → Upload JSON file**
+3. Select `grafana/dashboard.json`
+4. Choose your PostgreSQL data source when prompted
+
 ## Development
 
 ### Prerequisites
@@ -202,6 +227,7 @@ hass-timescaledb-exporter/
 │       ├── const.py                 # Constants and defaults
 │       ├── diagnostics.py           # Debug diagnostics
 │       ├── listener.py              # EVENT_STATE_CHANGED handler
+│       ├── sensor.py                # Status sensor entity
 │       ├── manifest.json            # Integration metadata
 │       ├── strings.json             # Translation strings
 │       ├── translations/en.json     # English translations
@@ -216,6 +242,7 @@ hass-timescaledb-exporter/
 │   ├── conftest.py                  # Test fixtures
 │   ├── test_config_flow.py          # Config flow tests
 │   ├── test_writer.py               # Writer unit tests
+│   ├── test_sensor.py               # Sensor entity tests
 │   ├── test_listener.py             # Listener unit tests
 │   ├── test_init.py                 # Setup/teardown tests
 │   ├── test_migrations.py           # Migration manager tests
@@ -223,6 +250,7 @@ hass-timescaledb-exporter/
 │   └── integration/                 # Real DB integration tests
 ├── .devcontainer/                   # VS Code devcontainer
 ├── .github/workflows/ci.yml        # CI: lint, test, validate
+├── grafana/dashboard.json           # Pre-built Grafana dashboard
 ├── docker-compose.yml               # HA + TimescaleDB stack
 ├── pyproject.toml                   # Project config
 ├── hacs.json                        # HACS metadata

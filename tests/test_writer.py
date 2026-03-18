@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import asyncpg
 import pytest
 
 from custom_components.timescaledb_exporter.db.writer import (
@@ -195,5 +196,116 @@ class TestExporterFlush:
         exporter.enqueue(_make_state_change())
 
         await exporter._flush_queue()
+        # Retries exhausted → 1 error + (MAX_RETRIES - 1) retries
         assert exporter.stats.total_errors == 1
+        assert exporter.stats.total_retries == 2
         assert exporter.stats.total_writes == 0
+
+
+class TestExporterRetry:
+    """Tests for the write retry mechanism."""
+
+    @pytest.fixture
+    def mock_pool(self) -> MagicMock:
+        pool = MagicMock()
+        mock_conn = AsyncMock()
+        mock_conn.executemany = AsyncMock()
+        mock_conn.execute = AsyncMock()
+
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        pool.acquire.return_value = ctx
+        pool.close = AsyncMock()
+
+        return pool
+
+    async def test_retries_on_transient_error_then_succeeds(self, mock_pool: MagicMock) -> None:
+        """Transient failures retry, then succeed on third attempt."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.executemany.side_effect = [
+            OSError("Connection refused"),
+            OSError("Connection refused"),
+            None,  # success on 3rd attempt
+        ]
+
+        exporter = TimescaleExporter(pool=mock_pool)
+        exporter.enqueue(_make_state_change())
+
+        await exporter._flush_queue()
+        assert exporter.stats.total_retries == 2
+        assert exporter.stats.total_writes == 1
+        assert exporter.stats.total_errors == 0
+        assert exporter._consecutive_errors == 0
+
+    async def test_drops_on_permanent_error(self, mock_pool: MagicMock) -> None:
+        """Permanent errors (DataError) drop the batch immediately."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.executemany.side_effect = asyncpg.DataError("bad data")
+
+        exporter = TimescaleExporter(pool=mock_pool)
+        exporter.enqueue(_make_state_change())
+
+        await exporter._flush_queue()
+        assert exporter.stats.total_errors == 1
+        assert exporter.stats.total_retries == 0
+        assert exporter.stats.total_writes == 0
+
+    async def test_exhausts_retries(self, mock_pool: MagicMock) -> None:
+        """After all retries exhausted, batch is dropped."""
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.executemany.side_effect = OSError("Connection refused")
+
+        exporter = TimescaleExporter(pool=mock_pool)
+        exporter.enqueue(_make_state_change())
+
+        await exporter._flush_queue()
+        assert mock_conn.executemany.call_count == 3
+        assert exporter.stats.total_errors == 1
+        assert exporter.stats.total_retries == 2
+        assert exporter._consecutive_errors == 1
+
+    async def test_is_healthy_after_success(self, mock_pool: MagicMock) -> None:
+        exporter = TimescaleExporter(pool=mock_pool)
+        await exporter.start()
+        exporter.enqueue(_make_state_change())
+        await exporter._flush_queue()
+        assert exporter.is_healthy is True
+        await exporter.stop()
+
+    async def test_is_healthy_false_after_consecutive_failures(self, mock_pool: MagicMock) -> None:
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+        mock_conn.executemany.side_effect = OSError("Connection refused")
+
+        exporter = TimescaleExporter(pool=mock_pool)
+        await exporter.start()
+
+        # 3 failed batches → _consecutive_errors reaches 3
+        for _ in range(3):
+            exporter.enqueue(_make_state_change())
+            await exporter._flush_queue()
+
+        assert exporter.is_healthy is False
+        await exporter.stop()
+
+    async def test_consecutive_errors_reset_on_success(self, mock_pool: MagicMock) -> None:
+        mock_conn = mock_pool.acquire.return_value.__aenter__.return_value
+
+        exporter = TimescaleExporter(pool=mock_pool)
+        await exporter.start()
+
+        # Fail 2 batches
+        mock_conn.executemany.side_effect = OSError("Connection refused")
+        for _ in range(2):
+            exporter.enqueue(_make_state_change())
+            await exporter._flush_queue()
+        assert exporter._consecutive_errors == 2
+
+        # Succeed on next
+        mock_conn.executemany.side_effect = None
+        exporter.enqueue(_make_state_change())
+        await exporter._flush_queue()
+        assert exporter._consecutive_errors == 0
+        assert exporter.is_healthy is True
+
+        await exporter.stop()

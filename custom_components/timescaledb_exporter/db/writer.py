@@ -21,6 +21,16 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_MAX_RETRIES = 3
+_PERMANENT_ERRORS = (asyncpg.DataError, asyncpg.IntegrityConstraintViolationError)
+
+_INSERT_SQL = (
+    "INSERT INTO ha_states "
+    "(time, entity_id, state, state_numeric, attributes, "
+    "context_id) "
+    "VALUES ($1, $2, $3, $4, $5, $6)"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class StateChange:
@@ -41,6 +51,7 @@ class ExporterStats:
     total_writes: int = 0
     total_dropped: int = 0
     total_errors: int = 0
+    total_retries: int = 0
     last_flush_at: datetime | None = None
     queue_high_watermark: int = 0
 
@@ -78,12 +89,18 @@ class TimescaleExporter:
         self._queue: asyncio.Queue[StateChange] = asyncio.Queue(maxsize=max_queue_size)
         self._flush_task: asyncio.Task[None] | None = None
         self._running = False
+        self._consecutive_errors = 0
         self.stats = ExporterStats()
 
     @property
     def queue_size(self) -> int:
         """Return the current queue depth."""
         return self._queue.qsize()
+
+    @property
+    def is_healthy(self) -> bool:
+        """Return True if the exporter is running and not in a sustained error state."""
+        return self._running and self._consecutive_errors < _MAX_RETRIES
 
     def is_excluded(self, entity_id: str) -> bool:
         """Check if an entity should be excluded from export."""
@@ -183,7 +200,7 @@ class TimescaleExporter:
         await self._write_batch(batch)
 
     async def _write_batch(self, batch: list[StateChange]) -> None:
-        """Write a batch of state changes to TimescaleDB."""
+        """Write a batch of state changes to TimescaleDB with retry."""
         records = [
             (
                 sc.time,
@@ -196,21 +213,42 @@ class TimescaleExporter:
             for sc in batch
         ]
 
-        try:
-            async with self._pool.acquire() as conn:
-                await conn.executemany(
-                    "INSERT INTO ha_states "
-                    "(time, entity_id, state, state_numeric, attributes, "
-                    "context_id) "
-                    "VALUES ($1, $2, $3, $4, $5, $6)",
-                    records,
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                async with self._pool.acquire() as conn:
+                    await conn.executemany(_INSERT_SQL, records)
+                self.stats.total_writes += len(batch)
+                self.stats.last_flush_at = datetime.now(UTC)
+                self._consecutive_errors = 0
+                _LOGGER.debug("Flushed %d state changes to TimescaleDB", len(batch))
+                break
+            except _PERMANENT_ERRORS:
+                _LOGGER.exception(
+                    "Permanent error writing %d state changes (dropping batch)",
+                    len(batch),
                 )
-            self.stats.total_writes += len(batch)
-            self.stats.last_flush_at = datetime.now(UTC)
-            _LOGGER.debug("Flushed %d state changes to TimescaleDB", len(batch))
-        except Exception:
-            _LOGGER.exception("Failed to write %d state changes to TimescaleDB", len(batch))
-            self.stats.total_errors += 1
+                self.stats.total_errors += 1
+                self._consecutive_errors += 1
+                break
+            except Exception:
+                if attempt < _MAX_RETRIES:
+                    delay = 2 ** (attempt - 1)
+                    _LOGGER.warning(
+                        "Write failed (attempt %d/%d), retrying in %ds",
+                        attempt,
+                        _MAX_RETRIES,
+                        delay,
+                    )
+                    self.stats.total_retries += 1
+                    await asyncio.sleep(delay)
+                else:
+                    _LOGGER.exception(
+                        "Failed to write %d state changes after %d attempts",
+                        len(batch),
+                        _MAX_RETRIES,
+                    )
+                    self.stats.total_errors += 1
+                    self._consecutive_errors += 1
 
         # Update entity metadata (best-effort, don't block on failures)
         await self._update_entity_metadata(batch)

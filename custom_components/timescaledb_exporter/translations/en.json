@@ -41,5 +41,17 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "disconnected": "Disconnected"
+        }
+      }
+    }
   }
 }

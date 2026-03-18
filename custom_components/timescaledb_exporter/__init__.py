@@ -9,7 +9,7 @@ import logging
 
 import asyncpg
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
@@ -41,6 +41,8 @@ from .db import (
 from .listener import async_setup_listener
 
 _LOGGER = logging.getLogger(__name__)
+
+PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 def _json_serial(obj: object) -> str:
@@ -174,6 +176,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: TimescaleDBExporterConfi
     # 9. Listen for options updates
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
+    # 10. Forward sensor platform
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     _LOGGER.info("TimescaleDB Exporter started successfully")
     return True
 
@@ -217,6 +222,7 @@ async def _async_options_updated(
 
 async def async_unload_entry(hass: HomeAssistant, entry: TimescaleDBExporterConfigEntry) -> bool:
     """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     # Cleanup callbacks registered via entry.async_on_unload() are called automatically
     _LOGGER.info("TimescaleDB Exporter unloaded")
-    return True
+    return unload_ok

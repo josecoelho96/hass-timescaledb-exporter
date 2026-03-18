@@ -64,12 +64,8 @@ async def db_pool(timescaledb_dsn: str, socket_enabled):
             "ha_states",
         ):
             try:
-                await conn.execute(
-                    f"SELECT remove_compression_policy('{view}', if_exists => TRUE)"
-                )
-                await conn.execute(
-                    f"SELECT remove_retention_policy('{view}', if_exists => TRUE)"
-                )
+                await conn.execute(f"SELECT remove_compression_policy('{view}', if_exists => TRUE)")
+                await conn.execute(f"SELECT remove_retention_policy('{view}', if_exists => TRUE)")
             except asyncpg.UndefinedTableError:
                 pass
         # Drop continuous aggregates (order matters for hierarchical deps)
@@ -98,12 +94,8 @@ async def db_pool(timescaledb_dsn: str, socket_enabled):
             "ha_states",
         ):
             try:
-                await conn.execute(
-                    f"SELECT remove_compression_policy('{view}', if_exists => TRUE)"
-                )
-                await conn.execute(
-                    f"SELECT remove_retention_policy('{view}', if_exists => TRUE)"
-                )
+                await conn.execute(f"SELECT remove_compression_policy('{view}', if_exists => TRUE)")
+                await conn.execute(f"SELECT remove_retention_policy('{view}', if_exists => TRUE)")
             except asyncpg.UndefinedTableError:
                 pass
         for view in (
