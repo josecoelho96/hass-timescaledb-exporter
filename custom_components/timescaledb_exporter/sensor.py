@@ -18,7 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .db.writer import TimescaleExporter
@@ -90,7 +90,7 @@ SENSOR_DESCRIPTIONS: tuple[TimescaleDBSensorEntityDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    async_add_entities: AddConfigEntryEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up TimescaleDB Exporter sensors from a config entry."""
     entities: list[SensorEntity] = [TimescaleDBExporterStatusSensor(entry)]
