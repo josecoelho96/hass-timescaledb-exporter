@@ -51,6 +51,27 @@
           "error": "Error",
           "disconnected": "Disconnected"
         }
+      },
+      "total_writes": {
+        "name": "Total writes"
+      },
+      "total_errors": {
+        "name": "Total errors"
+      },
+      "total_retries": {
+        "name": "Total retries"
+      },
+      "total_dropped": {
+        "name": "Total dropped"
+      },
+      "queue_size": {
+        "name": "Queue size"
+      },
+      "queue_high_watermark": {
+        "name": "Queue high watermark"
+      },
+      "last_flush_at": {
+        "name": "Last flush"
       }
     }
   }
