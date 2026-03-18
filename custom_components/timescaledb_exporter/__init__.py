@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+from functools import partial
 import json
 import logging
 
@@ -40,6 +42,21 @@ from .listener import async_setup_listener
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _json_serial(obj: object) -> str:
+    """Handle non-serializable types found in HA state attributes."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, set):
+        return sorted(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+_dumps = partial(json.dumps, default=_json_serial)
+
+
 type TimescaleDBExporterConfigEntry = ConfigEntry[TimescaleExporterRuntimeData]
 
 
@@ -63,7 +80,7 @@ async def _create_pool(data: dict) -> asyncpg.Pool:
     async def init_connection(conn: asyncpg.Connection) -> None:
         await conn.set_type_codec(
             "jsonb",
-            encoder=json.dumps,
+            encoder=_dumps,
             decoder=json.loads,
             schema="pg_catalog",
         )
