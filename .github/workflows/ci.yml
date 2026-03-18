@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       timescaledb:
-        image: timescale/timescaledb-ha:pg17
+        image: timescale/timescaledb-ha:pg18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -72,7 +72,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run integration tests
-        run: pytest tests/ -m integration -vv --no-cov
+        run: pytest tests/ -m integration -vv --no-cov -p no:socket
         env:
           TIMESCALEDB_HOST: localhost
           TIMESCALEDB_PORT: 5432
