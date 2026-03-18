@@ -1,6 +1,6 @@
 # Home Assistant TimescaleDB Exporter
 
-[![CI](https://github.com/jcoelho/hass-timescaledb-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/jcoelho/hass-timescaledb-exporter/actions/workflows/ci.yml)
+[![CI](https://github.com/josecoelho96/hass-timescaledb-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/josecoelho96/hass-timescaledb-exporter/actions/workflows/ci.yml)
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
 
 A Home Assistant custom integration that exports **all state changes** to [TimescaleDB](https://www.timescale.com/) for long-term storage, analytics, and visualization.
@@ -33,7 +33,7 @@ A Home Assistant custom integration that exports **all state changes** to [Times
 ### HACS (Recommended)
 
 1. Open HACS → Integrations → ⋮ (top right) → **Custom repositories**
-2. Add `https://github.com/jcoelho/hass-timescaledb-exporter` with category **Integration**
+2. Add `https://github.com/josecoelho96/hass-timescaledb-exporter` with category **Integration**
 3. Click **Install**
 4. Restart Home Assistant
 
@@ -162,7 +162,7 @@ A pre-built Grafana dashboard is included in `grafana/dashboard.json`.
 
 ```bash
 # Clone the repository
-git clone https://github.com/jcoelho/hass-timescaledb-exporter.git
+git clone https://github.com/josecoelho96/hass-timescaledb-exporter.git
 cd hass-timescaledb-exporter
 
 # Create virtual environment
