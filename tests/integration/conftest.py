@@ -31,7 +31,7 @@ def timescaledb_dsn() -> str:
 
 
 @pytest.fixture
-async def db_pool(timescaledb_dsn: str, socket_enabled):
+async def db_pool(timescaledb_dsn: str):
     """Create a real asyncpg pool connected to TimescaleDB.
 
     Cleans up test tables before and after each test.
