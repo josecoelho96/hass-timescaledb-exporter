@@ -19,7 +19,7 @@ A Home Assistant custom integration that exports **all state changes** to [Times
 - **Dual-column state storage** — `state` (TEXT) + `state_numeric` (FLOAT) for efficient aggregation without query-time casting
 - **Entity metadata tracking** — domain, friendly name, unit, device class
 - **Configurable exclusions** — exclude entities by glob pattern or entire domains
-- **Status sensor** — `sensor.timescaledb_exporter_status` exposes health, write counts, queue depth, and error stats
+- **Diagnostic sensors** — 8 individual entities (status, total writes/errors/retries/dropped, queue size, queue high watermark, last flush) with proper `state_class` for HA long-term statistics
 - **UI-based configuration** — full Config Flow + Options Flow, no YAML needed
 - **Diagnostics** — connection status, queue depth, write stats, database size, compression ratios
 
@@ -227,7 +227,7 @@ hass-timescaledb-exporter/
 │       ├── const.py                 # Constants and defaults
 │       ├── diagnostics.py           # Debug diagnostics
 │       ├── listener.py              # EVENT_STATE_CHANGED handler
-│       ├── sensor.py                # Status sensor entity
+│       ├── sensor.py                # Diagnostic sensor entities (8 sensors)
 │       ├── manifest.json            # Integration metadata
 │       ├── strings.json             # Translation strings
 │       ├── translations/en.json     # English translations
