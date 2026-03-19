@@ -11,5 +11,5 @@
   "loggers": ["asyncpg"],
   "requirements": ["asyncpg==0.31.0"],
   "single_config_entry": true,
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-03-19
+
+### Fixed
+
+- Integration tests: re-enabled sockets for integration test runs while keeping Home Assistant test plugin compatibility.
+- Integration tests: forced IPv4 host (`127.0.0.1`) in CI to avoid IPv6 localhost resolution issues.
+- Integration tests: stabilized TimescaleDB cleanup by disabling scheduled background jobs before dropping materialized views/tables.
+- Integration tests: fixed cleanup JSON decoding issue by using a raw `asyncpg` connection (without custom JSONB codec) for schema teardown.
+- Integration tests: reduced teardown deadlock risk during aggregate/view cleanup.
+
 ## [0.1.0] - 2026-03-18
 
 ### Added

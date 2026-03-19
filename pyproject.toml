@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hass-timescaledb-exporter"
-version = "0.1.0"
+version = "0.1.1"
 description = "Home Assistant custom integration to export state changes to TimescaleDB for long-term storage"
 readme = "README.md"
 license = {text = "MIT"}
