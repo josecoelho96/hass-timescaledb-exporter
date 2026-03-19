@@ -7,11 +7,20 @@ import os
 
 import asyncpg
 import pytest
+from pytest_socket import enable_socket
 
 
 @pytest.fixture(autouse=True)
 def socket_enabled():
-    """Re-enable real sockets for integration tests (pytest-socket blocks them by default)."""
+    """Re-enable real sockets for integration tests.
+
+    pytest-homeassistant-custom-component's pytest_runtest_setup hook calls
+    disable_socket() on every test. This fixture runs after that hook and
+    restores the real socket so integration tests can reach TimescaleDB.
+    The fixture name 'socket_enabled' also tells pytest-socket's own hook
+    to skip its restrictions.
+    """
+    enable_socket()
     yield
 
 
