@@ -67,63 +67,48 @@ async def db_pool(timescaledb_dsn: str):
         init=init_conn,
     )
 
-    # Clean slate: drop test objects if they exist
-    async with pool.acquire() as conn:
-        # Remove policies first to avoid deadlocks with background workers
-        for view in (
-            "ha_state_changes_daily",
-            "ha_state_changes_hourly",
-            "ha_states_daily",
-            "ha_states_hourly",
-            "ha_states_5min",
-            "ha_states",
-        ):
+    async def _clean_db(dsn: str) -> None:
+        """Drop all test objects using a raw connection (no custom codecs)."""
+        conn = await asyncpg.connect(dsn=dsn)
+        try:
+            # Disable scheduled background jobs to avoid deadlocks on DROP
             try:
-                await conn.execute(f"SELECT remove_compression_policy('{view}', if_exists => TRUE)")
-                await conn.execute(f"SELECT remove_retention_policy('{view}', if_exists => TRUE)")
-            except asyncpg.UndefinedTableError:
+                jobs = await conn.fetch(
+                    "SELECT job_id FROM timescaledb_information.jobs "
+                    "WHERE proc_schema = '_timescaledb_functions'"
+                )
+                for job in jobs:
+                    await conn.execute(
+                        "SELECT alter_job($1, scheduled => false)", job["job_id"]
+                    )
+            except (asyncpg.UndefinedTableError, asyncpg.UndefinedFunctionError):
                 pass
-        # Drop continuous aggregates (order matters for hierarchical deps)
-        for view in (
-            "ha_state_changes_daily",
-            "ha_state_changes_hourly",
-            "ha_states_daily",
-            "ha_states_hourly",
-            "ha_states_5min",
-        ):
-            await conn.execute(f"DROP MATERIALIZED VIEW IF EXISTS {view} CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS ha_states CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS ha_entity_metadata CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+
+            # Small delay to let any running job iteration finish
+            await conn.execute("SELECT pg_sleep(0.2)")
+
+            # Drop continuous aggregates top-down (CASCADE removes their policies)
+            for view in (
+                "ha_state_changes_daily",
+                "ha_state_changes_hourly",
+                "ha_states_daily",
+                "ha_states_hourly",
+                "ha_states_5min",
+            ):
+                await conn.execute(f"DROP MATERIALIZED VIEW IF EXISTS {view} CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS ha_states CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS ha_entity_metadata CASCADE")
+            await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+        finally:
+            await conn.close()
+
+    # Clean slate before test
+    await _clean_db(timescaledb_dsn)
 
     yield pool
 
     # Cleanup after test
-    async with pool.acquire() as conn:
-        for view in (
-            "ha_state_changes_daily",
-            "ha_state_changes_hourly",
-            "ha_states_daily",
-            "ha_states_hourly",
-            "ha_states_5min",
-            "ha_states",
-        ):
-            try:
-                await conn.execute(f"SELECT remove_compression_policy('{view}', if_exists => TRUE)")
-                await conn.execute(f"SELECT remove_retention_policy('{view}', if_exists => TRUE)")
-            except asyncpg.UndefinedTableError:
-                pass
-        for view in (
-            "ha_state_changes_daily",
-            "ha_state_changes_hourly",
-            "ha_states_daily",
-            "ha_states_hourly",
-            "ha_states_5min",
-        ):
-            await conn.execute(f"DROP MATERIALIZED VIEW IF EXISTS {view} CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS ha_states CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS ha_entity_metadata CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+    await _clean_db(timescaledb_dsn)
 
     await pool.close()
     pool.terminate()
