@@ -72,9 +72,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run integration tests
-        run: pytest tests/ -m integration -vv --no-cov -p no:socket
+        run: pytest tests/ -m integration -vv --no-cov
         env:
-          TIMESCALEDB_HOST: localhost
+          TIMESCALEDB_HOST: 127.0.0.1
           TIMESCALEDB_PORT: 5432
           TIMESCALEDB_USER: postgres
           TIMESCALEDB_PASSWORD: postgres
