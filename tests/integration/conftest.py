@@ -7,6 +7,14 @@ import os
 
 import asyncpg
 import pytest
+from pytest_socket import enable_socket
+
+
+@pytest.fixture(autouse=True)
+def _enable_socket_for_integration():
+    """Re-enable real sockets for integration tests (pytest-socket blocks them by default)."""
+    enable_socket()
+    yield
 
 
 @pytest.fixture
