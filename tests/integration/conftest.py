@@ -78,9 +78,7 @@ async def db_pool(timescaledb_dsn: str):
                     "WHERE proc_schema = '_timescaledb_functions'"
                 )
                 for job in jobs:
-                    await conn.execute(
-                        "SELECT alter_job($1, scheduled => false)", job["job_id"]
-                    )
+                    await conn.execute("SELECT alter_job($1, scheduled => false)", job["job_id"])
             except (asyncpg.UndefinedTableError, asyncpg.UndefinedFunctionError):
                 pass
 
